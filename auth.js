@@ -1,28 +1,44 @@
-document.getElementById("signup").addEventListener("click", function() {
+document.getElementById("signup").addEventListener("click", function () {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-    const role = document.querySelector('input[name="role"]:checked').value;
+    const role = document.querySelector('input[name="role"]:checked').value; // Get selected role
 
-    auth.createUserWithEmailAndPassword(email, password).then(user => {
-        db.ref("users/" + user.user.uid).set({ email, role });
-        alert("Account Created! Please log in.");
-    }).catch(error => {
-        alert(error.message);
-    });
+    auth.createUserWithEmailAndPassword(email, password)
+        .then(userCredential => {
+            const user = userCredential.user;
+            return db.ref("users/" + user.uid).set({
+                email: email,
+                role: role // Save user role in the database
+            });
+        })
+        .then(() => {
+            alert("Signup successful! Redirecting...");
+            window.location.href = role === "rider" ? "requestRide.html" : "driverDashboard.html";
+        })
+        .catch(error => {
+            alert(error.message);
+        });
 });
 
-document.getElementById("login").addEventListener("click", function() {
+document.getElementById("login").addEventListener("click", function () {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
-    auth.signInWithEmailAndPassword(email, password).then(user => {
-        alert("Login Successful!! Redirecting....");
-
-        setTimeout(() => {
-            window.location.href = "requestRide.html";
-        },1000);
-    })
-    .catch(error => {
-        alert(error.message);
-    });
+    auth.signInWithEmailAndPassword(email, password)
+        .then(userCredential => {
+            const user = userCredential.user;
+            return db.ref("users/" + user.uid).once("value");
+        })
+        .then(snapshot => {
+            const userData = snapshot.val();
+            if (userData && userData.role) {
+                alert("Login successful!");
+                window.location.href = userData.role === "rider" ? "requestRide.html" : "driverDashboard.html";
+            } else {
+                alert("Error: User role not found.");
+            }
+        })
+        .catch(error => {
+            alert(error.message);
+        });
 });
