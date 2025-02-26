@@ -25,3 +25,15 @@ document.getElementById("requestRide").addEventListener("click", function () {
         alert("Location access denied!");
     });
 });
+
+// Listen for ride acceptance
+auth.onAuthStateChanged(user => {
+    if (user) {
+        db.ref("rideRequests/" + user.uid).on("value", snapshot => {
+            const ride = snapshot.val();
+            if (ride && ride.status === "accepted") {
+                alert("A driver has accepted your ride! They are on the way.");
+            }
+        });
+    }
+});
