@@ -16,8 +16,13 @@ document.getElementById("login").addEventListener("click", function() {
     const password = document.getElementById("password").value;
 
     auth.signInWithEmailAndPassword(email, password).then(user => {
-        alert("Login Successful!");
-    }).catch(error => {
+        alert("Login Successful!! Redirecting....");
+
+        setTimeout(() => {
+            window.location.href = "requestRide.html";
+        },1000);
+    })
+    .catch(error => {
         alert(error.message);
     });
 });
