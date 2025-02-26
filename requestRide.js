@@ -32,7 +32,15 @@ auth.onAuthStateChanged(user => {
         db.ref("rideRequests/" + user.uid).on("value", snapshot => {
             const ride = snapshot.val();
             if (ride && ride.status === "accepted") {
-                alert("A driver has accepted your ride! They are on the way.");
+                alert("A driver is on the way!");
+
+                // Track driver location in real time
+                db.ref("drivers/" + ride.driverId).on("value", driverSnapshot => {
+                    const driverLocation = driverSnapshot.val();
+                    if (driverLocation) {
+                        alert(`Driver's current location: Lat: ${driverLocation.lat}, Lng: ${driverLocation.lng}`);
+                    }
+                });
             }
         });
     }
