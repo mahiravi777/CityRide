@@ -2,7 +2,7 @@ let map, userMarker, driverMarker;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 0, lng: 0 }, // Default center
+        center: { lat: 0, lng: 0 }, 
         zoom: 15
     });
 
@@ -27,17 +27,13 @@ function initMap() {
 
                 map.setCenter(userLocation);
 
-                // Update location in Firebase
+                // Update rider's location in Firebase
                 const user = auth.currentUser;
                 if (user) {
                     db.ref("users/" + user.uid).once("value", snapshot => {
                         const userData = snapshot.val();
-                        if (userData && userData.role === "driver") {
-                            // Update driver location
-                            db.ref("drivers/" + user.uid).set(userLocation);
-                        } else {
-                            // Update rider location
-                            db.ref("users/" + user.uid + "/location").set(userLocation);
+                        if (userData && userData.role === "rider") {
+                            db.ref("riders/" + user.uid + "/location").set(userLocation);
                         }
                     });
                 }
@@ -51,7 +47,7 @@ function initMap() {
         alert("Geolocation is not supported by this browser.");
     }
 
-    // **Live tracking of driver location for riders**
+    // Track driver location in real-time after ride is accepted
     auth.onAuthStateChanged(user => {
         if (user) {
             db.ref("rideRequests/" + user.uid).on("value", snapshot => {
@@ -64,9 +60,9 @@ function initMap() {
     });
 }
 
-// **Function to track driver location live**
+// Function to track driver's location in real-time
 function trackDriverLocation(driverId) {
-    db.ref("drivers/" + driverId).on("value", driverSnapshot => {
+    db.ref("drivers/" + driverId + "/location").on("value", driverSnapshot => {
         const driverLocation = driverSnapshot.val();
         if (driverLocation) {
             if (!driverMarker) {
