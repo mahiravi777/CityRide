@@ -1,19 +1,17 @@
 document.getElementById("signup").addEventListener("click", function () {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-    const role = document.querySelector('input[name="role"]:checked').value; // Get selected role
 
     auth.createUserWithEmailAndPassword(email, password)
         .then(userCredential => {
             const user = userCredential.user;
             return db.ref("users/" + user.uid).set({
-                email: email,
-                role: role // Save user role in the database
+                email: email
             });
         })
         .then(() => {
             alert("Signup successful! Redirecting...");
-            window.location.href = role === "rider" ? "requestRide.html" : "driverDashboard.html";
+            window.location.href = "locationShare.html";
         })
         .catch(error => {
             alert(error.message);
@@ -26,17 +24,8 @@ document.getElementById("login").addEventListener("click", function () {
 
     auth.signInWithEmailAndPassword(email, password)
         .then(userCredential => {
-            const user = userCredential.user;
-            return db.ref("users/" + user.uid).once("value");
-        })
-        .then(snapshot => {
-            const userData = snapshot.val();
-            if (userData && userData.role) {
-                alert("Login successful!");
-                window.location.href = userData.role === "rider" ? "requestRide.html" : "driverDashboard.html";
-            } else {
-                alert("Error: User role not found.");
-            }
+            alert("Login successful!");
+            window.location.href = "locationShare.html";
         })
         .catch(error => {
             alert(error.message);
