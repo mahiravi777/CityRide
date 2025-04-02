@@ -27,7 +27,6 @@ function initMap() {
 
                 map.setCenter(userLocation);
 
-                // Update rider's location in Firebase
                 const user = auth.currentUser;
                 if (user) {
                     db.ref("users/" + user.uid).once("value", snapshot => {
@@ -47,7 +46,6 @@ function initMap() {
         alert("Geolocation is not supported by this browser.");
     }
 
-    // Track driver location in real-time after ride is accepted
     auth.onAuthStateChanged(user => {
         if (user) {
             db.ref("rideRequests/" + user.uid).on("value", snapshot => {
@@ -60,7 +58,6 @@ function initMap() {
     });
 }
 
-// Function to track driver's location in real-time
 function trackDriverLocation(driverId) {
     db.ref("drivers/" + driverId + "/location").on("value", driverSnapshot => {
         const driverLocation = driverSnapshot.val();
@@ -79,5 +76,4 @@ function trackDriverLocation(driverId) {
     });
 }
 
-// Load the map when the page loads
 window.onload = initMap;
