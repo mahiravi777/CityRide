@@ -31,6 +31,13 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-function acceptRequest(requestId) {
-    db.ref("locationRequests/" + requestId).update({ status: "accepted" });
+function acceptRequest(requestedByUID) {
+    db.ref("locationRequests/" + requestedByUID).update({
+        status: "accepted"
+    }).then(() => {
+        console.log("Request accepted!");
+    }).catch(error => {
+        console.error("Error updating request: ", error);
+    });
 }
+
