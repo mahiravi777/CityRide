@@ -4,9 +4,9 @@ document.getElementById("requestShare").addEventListener("click", function () {
     const user = auth.currentUser;
 
     if (user && recipientEmail && duration) {
-        db.ref("locationRequests/" + user.uid).set({
-            recipientEmail,
-            duration,
+        db.ref("locationRequests/" + recipientUID).set({
+            requestedBy: auth.currentUser.displayName, // ✅ Store the requesting user's name (User A)
+            duration: duration
             status: "pending"
         }).then(() => {
             alert("Location sharing request sent!");
