@@ -1,4 +1,16 @@
-// Initialize Firebase Auth and Database
+// Initialize Firebase
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    databaseURL: "YOUR_DATABASE_URL",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.database();
 
@@ -8,55 +20,72 @@ document.getElementById("requestShare").addEventListener("click", function () {
     const duration = document.getElementById("duration").value;
     const user = auth.currentUser;
 
-    if (user && recipientEmail && duration) {
-        const requestRef = db.ref("locationRequests").push();
+    if (!user) {
+        alert("User not logged in!");
+        return;
+    }
 
-        requestRef.set({
+    if (recipientEmail && duration) {
+        const requestData = {
             requestedBy: user.uid,
             requestedByEmail: user.email,
             recipientEmail: recipientEmail,
             duration: duration,
-            status: "pending"
-        }).then(() => {
-            alert("Location sharing request sent!");
-        }).catch(error => {
-            alert("Error: " + error.message);
-        });
+            status: "pending",
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        db.ref("locationRequests").push(requestData)
+            .then(() => {
+                alert("Location sharing request sent!");
+            })
+            .catch(error => {
+                console.error(error);
+                alert("Error sending request: " + error.message);
+            });
+    } else {
+        alert("Please enter recipient's email and duration!");
     }
 });
 
 // Listen for incoming location sharing requests
 auth.onAuthStateChanged(user => {
     if (user) {
-        db.ref("locationRequests").orderByChild("recipientEmail").equalTo(user.email)
+        db.ref("locationRequests")
+            .orderByChild("recipientEmail")
+            .equalTo(user.email)
             .on("value", snapshot => {
-                document.getElementById("requestsList").innerHTML = "";
-                snapshot.forEach(request => {
-                    if (request.val().status === "pending") {
+                const requestsList = document.getElementById("requestsList");
+                requestsList.innerHTML = "";
+
+                snapshot.forEach(childSnapshot => {
+                    const request = childSnapshot.val();
+                    const key = childSnapshot.key;
+
+                    if (request.status === "pending") {
                         const li = document.createElement("li");
                         li.innerHTML = `
-                            ${request.val().requestedByEmail} wants your location for ${request.val().duration} minutes
-                            <button onclick="acceptRequest('${request.key}', '${request.val().requestedBy}')">Accept</button>
+                            ${request.requestedByEmail} wants your location for ${request.duration} minutes.
+                            <button onclick="acceptRequest('${key}', '${request.requestedBy}')">Accept</button>
                         `;
-                        document.getElementById("requestsList").appendChild(li);
+                        requestsList.appendChild(li);
                     }
                 });
             });
     }
 });
 
-// Accept a location sharing request
+// Accept a request
 function acceptRequest(requestKey, requesterUID) {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Update the request status to accepted
     db.ref("locationRequests/" + requestKey).update({
         status: "accepted"
     }).then(() => {
-        alert("Request accepted! Now sharing your live location.");
+        alert("Request accepted! Sharing live location.");
 
-        // Start sharing location
+        // Start sharing current user's location
         navigator.geolocation.watchPosition(position => {
             const { latitude, longitude } = position.coords;
 
@@ -68,64 +97,29 @@ function acceptRequest(requestKey, requesterUID) {
             });
         }, error => {
             console.error(error);
-            alert("Unable to access location. Please allow location access.");
+            alert("Error accessing location: " + error.message);
         }, {
             enableHighAccuracy: true,
             maximumAge: 0
         });
 
-        // Also start listening to the requester's location
+        // Also start listening to the other user's location
         listenToUserLocation(requesterUID);
     });
 }
 
-// Listen to another user's live location
-function listenToUserLocation(userId) {
-    db.ref("sharedLocations/" + userId).on("value", snapshot => {
-        const locationData = snapshot.val();
-        if (locationData) {
-            const { latitude, longitude } = locationData;
-            showMap(latitude, longitude);
+// Listen to another user's shared location
+function listenToUserLocation(uid) {
+    const locationDiv = document.getElementById("otherUserLocation");
+    db.ref("sharedLocations/" + uid).on("value", snapshot => {
+        const data = snapshot.val();
+        if (data) {
+            locationDiv.innerHTML = `
+                <h3>User Location:</h3>
+                <p>Latitude: ${data.latitude}</p>
+                <p>Longitude: ${data.longitude}</p>
+                <p>Updated at: ${new Date(data.timestamp).toLocaleTimeString()}</p>
+            `;
         }
     });
 }
-
-// Show location on map
-let map;
-let marker;
-
-function showMap(latitude, longitude) {
-    if (!map) {
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: latitude, lng: longitude },
-            zoom: 15
-        });
-        marker = new google.maps.Marker({
-            position: { lat: latitude, lng: longitude },
-            map: map
-        });
-    } else {
-        map.setCenter({ lat: latitude, lng: longitude });
-        marker.setPosition({ lat: latitude, lng: longitude });
-    }
-}
-
-// When the page loads and user is authenticated, share your own location if you are already sharing
-auth.onAuthStateChanged(user => {
-    if (user) {
-        // Share location if user already accepted a request
-        navigator.geolocation.watchPosition(position => {
-            const { latitude, longitude } = position.coords;
-            db.ref("sharedLocations/" + user.uid).set({
-                latitude,
-                longitude,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-        }, error => {
-            console.error(error);
-        }, {
-            enableHighAccuracy: true,
-            maximumAge: 0
-        });
-    }
-});
