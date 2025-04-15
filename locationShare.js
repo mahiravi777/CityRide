@@ -1,12 +1,12 @@
 // Initialize Firebase
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    databaseURL: "YOUR_DATABASE_URL",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyA4LG8DwtEGn99KeG1jDBGt82qs3a5C9Cg",
+    authDomain: "cityride-6f0ba.firebaseapp.com",
+    databaseURL: "https://cityride-6f0ba-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "cityride-6f0ba",
+    storageBucket: "cityride-6f0ba.firebasestorage.app",
+    messagingSenderId: "12444627870",
+    appId: "1:12444627870:web:f3b6b1cea05c14654c1c8f"
 };
 
 firebase.initializeApp(firebaseConfig);
