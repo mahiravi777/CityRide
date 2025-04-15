@@ -1,6 +1,5 @@
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyA4LG8DwtEGn99KeG1jDBGt82qs3a5C9Cg",
+  apiKey: "AIzaSyA4LG8DwtEGn99KeG1jDBGt82qs3a5C9Cg",  // Replace with your actual API Key
   authDomain: "cityride-6f0ba.firebaseapp.com",
   databaseURL: "https://cityride-6f0ba-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "cityride-6f0ba",
