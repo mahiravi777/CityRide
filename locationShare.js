@@ -1,19 +1,3 @@
-// Initialize Firebase
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",  // Replace with your actual API Key
-    authDomain: "YOUR_AUTH_DOMAIN",
-    databaseURL: "YOUR_DATABASE_URL",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.database();
-
 // Function to send a location sharing request
 document.getElementById("requestShare").addEventListener("click", function () {
     const recipientEmail = document.getElementById("recipientEmail").value;
