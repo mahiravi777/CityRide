@@ -3,13 +3,15 @@ const db = firebase.database();
 
 let map, myMarker, otherMarker;
 
-// Parse UID from URL
+// Get the UID of the other user from the query parameter
 const urlParams = new URLSearchParams(window.location.search);
 const otherUID = urlParams.get("with");
 
 auth.onAuthStateChanged(user => {
     if (user && otherUID) {
         initMap(user.uid, otherUID);
+    } else {
+        alert("User not authenticated or missing user to track.");
     }
 });
 
@@ -19,12 +21,11 @@ function initMap(myUID, otherUID) {
         zoom: 15
     });
 
-    // Track your own location
+    // Watch your own location
     navigator.geolocation.watchPosition(position => {
         const { latitude, longitude } = position.coords;
         const myLocation = { lat: latitude, lng: longitude };
 
-        // Save to Firebase
         db.ref("sharedLocations/" + myUID).set({
             latitude,
             longitude,
@@ -32,12 +33,11 @@ function initMap(myUID, otherUID) {
             sharingWith: otherUID
         });
 
-        // Update or place your marker
         if (!myMarker) {
             myMarker = new google.maps.Marker({
                 position: myLocation,
                 map,
-                title: "Your Location",
+                title: "You",
                 icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
             });
         } else {
@@ -45,15 +45,12 @@ function initMap(myUID, otherUID) {
         }
 
         map.setCenter(myLocation);
+    }, err => {
+        alert("Please enable location access.");
+        console.error(err);
+    }, { enableHighAccuracy: true });
 
-    }, error => {
-        console.error("Location error:", error);
-        alert("Could not access your location");
-    }, {
-        enableHighAccuracy: true
-    });
-
-    // Listen to other user's location
+    // Listen to other user location
     db.ref("sharedLocations/" + otherUID).on("value", snapshot => {
         const data = snapshot.val();
         if (data) {
@@ -63,7 +60,7 @@ function initMap(myUID, otherUID) {
                 otherMarker = new google.maps.Marker({
                     position: otherLocation,
                     map,
-                    title: "Friend's Location",
+                    title: "Friend",
                     icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
                 });
             } else {
