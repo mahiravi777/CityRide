@@ -1,9 +1,3 @@
-// Firebase config is in a separate file now: firebase-config.js
-// So no need to initialize it again here
-
-const auth = firebase.auth();
-const db = firebase.database();
-
 // Function to send a location sharing request
 document.getElementById("requestShare").addEventListener("click", function () {
     const recipientEmail = document.getElementById("recipientEmail").value;
