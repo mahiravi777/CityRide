@@ -1,6 +1,3 @@
-const auth = firebase.auth();
-const db = firebase.database();
-
 let map, myMarker, otherMarker;
 
 // Get the UID of the other user from the query parameter
