@@ -1,7 +1,10 @@
 let map, userMarker, driverMarker;
 
 function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
+    const mapElement = document.getElementById("map");
+    if (!mapElement) return;
+
+    map = new google.maps.Map(mapElement, {
         center: { lat: 0, lng: 0 },
         zoom: 15
     });
@@ -76,4 +79,5 @@ function trackDriverLocation(driverId) {
     });
 }
 
-window.onload = initMap;
+// ✅ Make initMap globally accessible
+window.initMap = initMap;
