@@ -1,4 +1,3 @@
-// Function to send a location sharing request
 document.getElementById("requestShare").addEventListener("click", function () {
     const recipientEmail = document.getElementById("recipientEmail").value;
     const duration = document.getElementById("duration").value;
