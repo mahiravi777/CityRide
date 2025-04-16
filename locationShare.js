@@ -1,3 +1,9 @@
+// Firebase config is in a separate file now: firebase-config.js
+// So no need to initialize it again here
+
+const auth = firebase.auth();
+const db = firebase.database();
+
 // Function to send a location sharing request
 document.getElementById("requestShare").addEventListener("click", function () {
     const recipientEmail = document.getElementById("recipientEmail").value;
@@ -32,7 +38,7 @@ document.getElementById("requestShare").addEventListener("click", function () {
     }
 });
 
-// Listen for incoming location sharing requests
+// Listen for incoming and accepted location sharing requests
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref("locationRequests")
@@ -54,6 +60,12 @@ auth.onAuthStateChanged(user => {
                         `;
                         requestsList.appendChild(li);
                     }
+
+                    // ✅ PLACE THIS BLOCK HERE to handle requester (User A)
+                    else if (request.status === "accepted" && request.requestedBy === user.uid) {
+                        // Redirect requester (User A) to live tracking
+                        window.location.href = `liveTracking.html?with=${request.recipientEmail.replace('.', '_')}`;
+                    }
                 });
             });
     }
@@ -67,43 +79,9 @@ function acceptRequest(requestKey, requesterUID) {
     db.ref("locationRequests/" + requestKey).update({
         status: "accepted"
     }).then(() => {
-        alert("Request accepted! Sharing live location.");
+        alert("Request accepted! Redirecting to live tracking...");
 
-        // Start sharing current user's location
-        navigator.geolocation.watchPosition(position => {
-            const { latitude, longitude } = position.coords;
-
-            db.ref("sharedLocations/" + user.uid).set({
-                latitude,
-                longitude,
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                sharingWith: requesterUID
-            });
-        }, error => {
-            console.error(error);
-            alert("Error accessing location: " + error.message);
-        }, {
-            enableHighAccuracy: true,
-            maximumAge: 0
-        });
-
-        // Also start listening to the other user's location
-        listenToUserLocation(requesterUID);
-    });
-}
-
-// Listen to another user's shared location
-function listenToUserLocation(uid) {
-    const locationDiv = document.getElementById("otherUserLocation");
-    db.ref("sharedLocations/" + uid).on("value", snapshot => {
-        const data = snapshot.val();
-        if (data) {
-            locationDiv.innerHTML = `
-                <h3>User Location:</h3>
-                <p>Latitude: ${data.latitude}</p>
-                <p>Longitude: ${data.longitude}</p>
-                <p>Updated at: ${new Date(data.timestamp).toLocaleTimeString()}</p>
-            `;
-        }
+        // Redirect accepter (User B) to live tracking
+        window.location.href = `liveTracking.html?with=${requesterUID}`;
     });
 }
