@@ -9,23 +9,34 @@ document.getElementById("requestShare").addEventListener("click", function () {
     }
 
     if (recipientEmail && duration) {
-        const requestData = {
-            requestedBy: user.uid,
-            requestedByEmail: user.email,
-            recipientEmail: recipientEmail,
-            duration: duration,
-            status: "pending",
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        };
+        // Find recipient UID based on email
+        db.ref("users").orderByChild("email").equalTo(recipientEmail).once("value", snapshot => {
+            if (snapshot.exists()) {
+                const recipientUID = Object.keys(snapshot.val())[0];
 
-        db.ref("locationRequests").push(requestData)
-            .then(() => {
-                alert("Location sharing request sent!");
-            })
-            .catch(error => {
-                console.error(error);
-                alert("Error sending request: " + error.message);
-            });
+                const requestData = {
+                    requestedBy: user.uid,
+                    requestedByEmail: user.email,
+                    recipientEmail: recipientEmail,
+                    recipientUID: recipientUID,
+                    duration: duration,
+                    status: "pending",
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                db.ref("locationRequests").push(requestData)
+                    .then(() => {
+                        alert("Location sharing request sent!");
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        alert("Error sending request: " + error.message);
+                    });
+
+            } else {
+                alert("Recipient not found!");
+            }
+        });
     } else {
         alert("Please enter recipient's email and duration!");
     }
@@ -35,8 +46,6 @@ document.getElementById("requestShare").addEventListener("click", function () {
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref("locationRequests")
-            .orderByChild("recipientEmail")
-            .equalTo(user.email)
             .on("value", snapshot => {
                 const requestsList = document.getElementById("requestsList");
                 requestsList.innerHTML = "";
@@ -45,7 +54,8 @@ auth.onAuthStateChanged(user => {
                     const request = childSnapshot.val();
                     const key = childSnapshot.key;
 
-                    if (request.status === "pending") {
+                    // Show incoming requests
+                    if (request.recipientEmail === user.email && request.status === "pending") {
                         const li = document.createElement("li");
                         li.innerHTML = `
                             ${request.requestedByEmail} wants your location for ${request.duration} minutes.
@@ -54,10 +64,14 @@ auth.onAuthStateChanged(user => {
                         requestsList.appendChild(li);
                     }
 
-                    // ✅ PLACE THIS BLOCK HERE to handle requester (User A)
-                    else if (request.status === "accepted" && request.requestedBy === user.uid) {
-                        // Redirect requester (User A) to live tracking
-                        window.location.href = `liveTracking.html?with=${request.recipientEmail.replace('.', '_')}`;
+                    // If this user is the requester (User A), and it's accepted, redirect
+                    if (request.requestedBy === user.uid && request.status === "accepted") {
+                        window.location.href = `liveTracking.html?with=${request.recipientUID}`;
+                    }
+
+                    // If this user is the accepter (User B), and it's accepted, redirect
+                    if (request.recipientUID === user.uid && request.status === "accepted") {
+                        window.location.href = `liveTracking.html?with=${request.requestedBy}`;
                     }
                 });
             });
@@ -73,8 +87,7 @@ function acceptRequest(requestKey, requesterUID) {
         status: "accepted"
     }).then(() => {
         alert("Request accepted! Redirecting to live tracking...");
-
-        // Redirect accepter (User B) to live tracking
+        // Accepter (User B) redirected
         window.location.href = `liveTracking.html?with=${requesterUID}`;
     });
 }
