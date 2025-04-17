@@ -1,27 +1,32 @@
-let map, myMarker, otherMarker;
+let map, myMarker, otherMarker, directionsService, directionsRenderer;
 
-// Get the UID of the other user from the query parameter
 const urlParams = new URLSearchParams(window.location.search);
 const otherUID = urlParams.get("with");
 
 auth.onAuthStateChanged(user => {
     if (user && otherUID) {
         initMap(user.uid, otherUID);
-    } else {
-        alert("User not authenticated or missing user to track.");
     }
 });
 
 function initMap(myUID, otherUID) {
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer();
+
     map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 0, lng: 0 },
         zoom: 15
     });
 
-    // Watch your own location
+    directionsRenderer.setMap(map);
+
+    let myLocation = null;
+    let otherLocation = null;
+
+    // Track your own location
     navigator.geolocation.watchPosition(position => {
         const { latitude, longitude } = position.coords;
-        const myLocation = { lat: latitude, lng: longitude };
+        myLocation = { lat: latitude, lng: longitude };
 
         db.ref("sharedLocations/" + myUID).set({
             latitude,
@@ -41,17 +46,19 @@ function initMap(myUID, otherUID) {
             myMarker.setPosition(myLocation);
         }
 
-        map.setCenter(myLocation);
-    }, err => {
-        alert("Please enable location access.");
-        console.error(err);
-    }, { enableHighAccuracy: true });
+        if (myLocation && otherLocation) {
+            showDirections(myLocation, otherLocation);
+        }
+    });
 
-    // Listen to other user location
+    // Listen for other user's location
     db.ref("sharedLocations/" + otherUID).on("value", snapshot => {
         const data = snapshot.val();
         if (data) {
-            const otherLocation = { lat: data.latitude, lng: data.longitude };
+            otherLocation = {
+                lat: data.latitude,
+                lng: data.longitude
+            };
 
             if (!otherMarker) {
                 otherMarker = new google.maps.Marker({
@@ -63,6 +70,24 @@ function initMap(myUID, otherUID) {
             } else {
                 otherMarker.setPosition(otherLocation);
             }
+
+            if (myLocation && otherLocation) {
+                showDirections(myLocation, otherLocation);
+            }
+        }
+    });
+}
+
+function showDirections(start, end) {
+    directionsService.route({
+        origin: start,
+        destination: end,
+        travelMode: google.maps.TravelMode.DRIVING
+    }, (response, status) => {
+        if (status === google.maps.DirectionsStatus.OK) {
+            directionsRenderer.setDirections(response);
+        } else {
+            console.error("Directions request failed due to " + status);
         }
     });
 }
