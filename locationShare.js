@@ -41,42 +41,46 @@ document.getElementById("requestShare").addEventListener("click", function () {
         alert("Please enter recipient's email and duration!");
     }
 });
+let redirectedToTracking = false;
 
-// Listen for incoming and accepted location sharing requests
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref("locationRequests")
+            .orderByChild("recipientEmail")
+            .equalTo(user.email)
             .on("value", snapshot => {
                 const requestsList = document.getElementById("requestsList");
-                requestsList.innerHTML = "";
+                if (requestsList) requestsList.innerHTML = "";
 
                 snapshot.forEach(childSnapshot => {
                     const request = childSnapshot.val();
                     const key = childSnapshot.key;
 
-                    // Show incoming requests
-                    if (request.recipientEmail === user.email && request.status === "pending") {
+                    if (request.status === "pending") {
                         const li = document.createElement("li");
                         li.innerHTML = `
                             ${request.requestedByEmail} wants your location for ${request.duration} minutes.
                             <button onclick="acceptRequest('${key}', '${request.requestedBy}')">Accept</button>
                         `;
-                        requestsList.appendChild(li);
+                        if (requestsList) requestsList.appendChild(li);
                     }
 
-                    // If this user is the requester (User A), and it's accepted, redirect
-                    if (request.requestedBy === user.uid && request.status === "accepted") {
-                        window.location.href = `liveTracking.html?with=${request.recipientUID}`;
-                    }
-
-                    // If this user is the accepter (User B), and it's accepted, redirect
-                    if (request.recipientUID === user.uid && request.status === "accepted") {
-                        window.location.href = `liveTracking.html?with=${request.requestedBy}`;
+                    // ✅ Only redirect if NOT already redirected in this session
+                    else if (
+                        request.status === "accepted" &&
+                        request.requestedBy === user.uid &&
+                        !redirectedToTracking
+                    ) {
+                        redirectedToTracking = true;
+                        setTimeout(() => {
+                            window.location.href = `liveTracking.html?with=${request.recipientEmail.replace('.', '_')}`;
+                        }, 1000); // short delay for smoother UX
                     }
                 });
             });
     }
 });
+
 
 // Accept a request
 function acceptRequest(requestKey, requesterUID) {
