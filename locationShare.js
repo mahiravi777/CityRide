@@ -104,14 +104,20 @@ auth.onAuthStateChanged(user => {
 
 // Accept a request
 function acceptRequest(requestKey, requesterUID) {
-    const user = auth.currentUser;
-    if (!user) return;
+    const acceptedAt = Date.now();
 
     db.ref("locationRequests/" + requestKey).update({
         status: "accepted",
-        timestamp: Date.now()  // Overwrite with client timestamp for tracking
+        acceptedAt: acceptedAt
     }).then(() => {
         alert("Request accepted! Redirecting to live tracking...");
+
+        // Redirect both users (requester and recipient) to liveTracking.html
+        // with the UID of the other participant in the query param
         window.location.href = `liveTracking.html?with=${requesterUID}`;
+    }).catch(error => {
+        console.error("Error accepting request:", error);
+        alert("Failed to accept the request. Please try again.");
     });
 }
+
