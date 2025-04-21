@@ -9,7 +9,6 @@ document.getElementById("requestShare").addEventListener("click", function () {
     }
 
     if (recipientEmail && duration) {
-        // Find recipient UID based on email
         db.ref("users").orderByChild("email").equalTo(recipientEmail).once("value", snapshot => {
             if (snapshot.exists()) {
                 const recipientUID = Object.keys(snapshot.val())[0];
@@ -41,22 +40,24 @@ document.getElementById("requestShare").addEventListener("click", function () {
         alert("Please enter recipient's email and duration!");
     }
 });
-let redirectedToTracking = false;
 
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref("locationRequests")
-            .orderByChild("recipientEmail")
-            .equalTo(user.email)
-            .on("value", snapshot => {
+            .once("value")
+            .then(snapshot => {
                 const requestsList = document.getElementById("requestsList");
                 if (requestsList) requestsList.innerHTML = "";
+
+                const continueDiv = document.getElementById("continueDiv");
+                if (continueDiv) continueDiv.innerHTML = "";
 
                 snapshot.forEach(childSnapshot => {
                     const request = childSnapshot.val();
                     const key = childSnapshot.key;
 
-                    if (request.status === "pending") {
+                    // Show incoming requests
+                    if (request.recipientEmail === user.email && request.status === "pending") {
                         const li = document.createElement("li");
                         li.innerHTML = `
                             ${request.requestedByEmail} wants your location for ${request.duration} minutes.
@@ -65,22 +66,29 @@ auth.onAuthStateChanged(user => {
                         if (requestsList) requestsList.appendChild(li);
                     }
 
-                    // ✅ Only redirect if NOT already redirected in this session
-                    else if (
-                        request.status === "accepted" &&
-                        request.requestedBy === user.uid &&
-                        !redirectedToTracking
-                    ) {
-                        redirectedToTracking = true;
-                        setTimeout(() => {
-                            window.location.href = `liveTracking.html?with=${request.recipientEmail.replace('.', '_')}`;
-                        }, 1000); // short delay for smoother UX
+                    // Show "Continue" button for active requests
+                    const requestAccepted = request.status === "accepted";
+                    const isInvolved = request.requestedBy === user.uid || request.recipientUID === user.uid;
+
+                    if (requestAccepted && isInvolved) {
+                        const requestStart = request.timestamp;
+                        const requestDuration = parseInt(request.duration) * 60 * 1000;
+                        const now = Date.now();
+
+                        if ((now - requestStart) <= requestDuration) {
+                            const withUID = request.requestedBy === user.uid ? request.recipientUID : request.requestedBy;
+                            const btn = document.createElement("button");
+                            btn.textContent = "Continue Live Tracking";
+                            btn.onclick = () => {
+                                window.location.href = `liveTracking.html?with=${withUID}`;
+                            };
+                            if (continueDiv) continueDiv.appendChild(btn);
+                        }
                     }
                 });
             });
     }
 });
-
 
 // Accept a request
 function acceptRequest(requestKey, requesterUID) {
@@ -88,10 +96,10 @@ function acceptRequest(requestKey, requesterUID) {
     if (!user) return;
 
     db.ref("locationRequests/" + requestKey).update({
-        status: "accepted"
+        status: "accepted",
+        timestamp: Date.now()  // Overwrite with client timestamp for tracking
     }).then(() => {
         alert("Request accepted! Redirecting to live tracking...");
-        // Accepter (User B) redirected
         window.location.href = `liveTracking.html?with=${requesterUID}`;
     });
 }
