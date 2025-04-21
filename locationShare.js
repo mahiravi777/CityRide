@@ -43,32 +43,34 @@ document.getElementById("requestShare").addEventListener("click", function () {
 
 auth.onAuthStateChanged(user => {
     if (user) {
-        db.ref("locationRequests")
-            .once("value")
-            .then(snapshot => {
-                const requestsList = document.getElementById("requestsList");
-                if (requestsList) requestsList.innerHTML = "";
+        const userUID = user.uid;
+        const userEmail = user.email;
 
+        db.ref("locationRequests")
+            .on("value", snapshot => {
+                const requestsList = document.getElementById("requestsList");
                 const continueDiv = document.getElementById("continueDiv");
+
+                if (requestsList) requestsList.innerHTML = "";
                 if (continueDiv) continueDiv.innerHTML = "";
 
                 snapshot.forEach(childSnapshot => {
                     const request = childSnapshot.val();
                     const key = childSnapshot.key;
 
-                    // Show incoming requests
-                    if (request.recipientEmail === user.email && request.status === "pending") {
+                    // --- SHOW INCOMING REQUESTS ---
+                    if (request.recipientEmail === userEmail && request.status === "pending") {
                         const li = document.createElement("li");
                         li.innerHTML = `
                             ${request.requestedByEmail} wants your location for ${request.duration} minutes.
                             <button onclick="acceptRequest('${key}', '${request.requestedBy}')">Accept</button>
                         `;
-                        if (requestsList) requestsList.appendChild(li);
+                        requestsList.appendChild(li);
                     }
 
-                    // Show "Continue" button for active requests
+                    // --- SHOW "CONTINUE" BUTTON FOR ACTIVE REQUESTS ---
                     const requestAccepted = request.status === "accepted";
-                    const isInvolved = request.requestedBy === user.uid || request.recipientUID === user.uid;
+                    const isInvolved = request.requestedBy === userUID || request.recipientUID === userUID;
 
                     if (requestAccepted && isInvolved) {
                         const requestStart = request.timestamp;
@@ -76,13 +78,23 @@ auth.onAuthStateChanged(user => {
                         const now = Date.now();
 
                         if ((now - requestStart) <= requestDuration) {
-                            const withUID = request.requestedBy === user.uid ? request.recipientUID : request.requestedBy;
-                            const btn = document.createElement("button");
-                            btn.textContent = "Continue Live Tracking";
-                            btn.onclick = () => {
+                            const withUID = request.requestedBy === userUID ? request.recipientUID : request.requestedBy;
+
+                            // If still on locationShare.html and not already on liveTracking, show continue button
+                            const continueButton = document.createElement("button");
+                            continueButton.textContent = "Continue Live Tracking";
+                            continueButton.onclick = () => {
                                 window.location.href = `liveTracking.html?with=${withUID}`;
                             };
-                            if (continueDiv) continueDiv.appendChild(btn);
+                            continueDiv.appendChild(continueButton);
+
+                            // --- Auto-Redirect Requester if Request Got Accepted ---
+                            if (request.requestedBy === userUID && !window.alreadyRedirected) {
+                                window.alreadyRedirected = true; // prevent infinite loop
+                                setTimeout(() => {
+                                    window.location.href = `liveTracking.html?with=${request.recipientUID}`;
+                                }, 1000);
+                            }
                         }
                     }
                 });
