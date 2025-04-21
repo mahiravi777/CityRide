@@ -23,14 +23,14 @@ function initMap(myUID, otherUID) {
     let myLocation = null;
     let otherLocation = null;
 
-    // Track your own location
+    // Track your own location and store as lat/lng
     navigator.geolocation.watchPosition(position => {
         const { latitude, longitude } = position.coords;
         myLocation = { lat: latitude, lng: longitude };
 
-        db.ref("sharedLocations/" + myUID).set({
-            latitude,
-            longitude,
+        db.ref("locations/" + myUID).set({
+            lat: latitude,
+            lng: longitude,
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             sharingWith: otherUID
         });
@@ -52,12 +52,12 @@ function initMap(myUID, otherUID) {
     });
 
     // Listen for other user's location
-    db.ref("sharedLocations/" + otherUID).on("value", snapshot => {
+    db.ref("locations/" + otherUID).on("value", snapshot => {
         const data = snapshot.val();
-        if (data) {
+        if (data && data.lat && data.lng) {
             otherLocation = {
-                lat: data.latitude,
-                lng: data.longitude
+                lat: data.lat,
+                lng: data.lng
             };
 
             if (!otherMarker) {
