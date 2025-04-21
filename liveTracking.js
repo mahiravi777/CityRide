@@ -1,15 +1,50 @@
-let map, myMarker, otherMarker, directionsService, directionsRenderer;
-
+let map, myMarker, otherMarker, directionsService, directionsRenderer, locationWatcher;
 const urlParams = new URLSearchParams(window.location.search);
 const otherUID = urlParams.get("with");
 
 auth.onAuthStateChanged(user => {
     if (user && otherUID) {
-        initMap(user.uid, otherUID);
+        checkSharingValidity(user.uid, otherUID);
     }
 });
 
-function initMap(myUID, otherUID) {
+// Check if the request is still valid
+function checkSharingValidity(myUID, otherUID) {
+    db.ref("locationRequests")
+        .orderByChild("status")
+        .equalTo("accepted")
+        .once("value", snapshot => {
+            let valid = false;
+
+            snapshot.forEach(child => {
+                const req = child.val();
+
+                const isParticipant = (req.requestedBy === myUID && req.recipientUID === otherUID) ||
+                                      (req.requestedBy === otherUID && req.recipientUID === myUID);
+
+                if (isParticipant) {
+                    const acceptedAt = req.acceptedAt;
+                    const duration = parseInt(req.duration); // in minutes
+                    const expiresAt = acceptedAt + duration * 60 * 1000;
+                    const now = Date.now();
+
+                    if (now <= expiresAt) {
+                        valid = true;
+                        const timeLeft = expiresAt - now;
+                        initMap(myUID, otherUID, timeLeft);
+                    }
+                }
+            });
+
+            if (!valid) {
+                alert("Location sharing session has expired.");
+                window.location.href = "locationShare.html";
+            }
+        });
+}
+
+// Initialize map and location tracking
+function initMap(myUID, otherUID, timeLeft) {
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer();
 
@@ -23,8 +58,8 @@ function initMap(myUID, otherUID) {
     let myLocation = null;
     let otherLocation = null;
 
-    // Track your own location and store as lat/lng
-    navigator.geolocation.watchPosition(position => {
+    // Watch user's location
+    locationWatcher = navigator.geolocation.watchPosition(position => {
         const { latitude, longitude } = position.coords;
         myLocation = { lat: latitude, lng: longitude };
 
@@ -51,7 +86,7 @@ function initMap(myUID, otherUID) {
         }
     });
 
-    // Listen for other user's location
+    // Listen to other user's location
     db.ref("locations/" + otherUID).on("value", snapshot => {
         const data = snapshot.val();
         if (data && data.lat && data.lng) {
@@ -76,6 +111,14 @@ function initMap(myUID, otherUID) {
             }
         }
     });
+
+    // Auto-stop after duration
+    setTimeout(() => {
+        db.ref("locations/" + myUID).remove();
+        navigator.geolocation.clearWatch(locationWatcher);
+        alert("Location sharing time has ended.");
+        window.location.href = "locationShare.html";
+    }, timeLeft);
 }
 
 function showDirections(start, end) {
