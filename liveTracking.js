@@ -1,134 +1,136 @@
-import { db } from './firebase-config.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
-import { auth } from './firebase-config.js';
+let map, myMarker, otherMarker, directionsService, directionsRenderer, locationWatcher;
+const urlParams = new URLSearchParams(window.location.search);
+const otherUID = urlParams.get("with");
 
-let map, myMarker, otherMarker, directionsService, directionsRenderer;
-let myUID, otherUID;
-let myLocation, otherLocation;
+auth.onAuthStateChanged(user => {
+    if (user && otherUID) {
+        checkSharingValidity(user.uid, otherUID);
+    }
+});
 
-function initMap() {
+// Check if the request is still valid
+function checkSharingValidity(myUID, otherUID) {
+    db.ref("locationRequests")
+        .orderByChild("status")
+        .equalTo("accepted")
+        .once("value", snapshot => {
+            let valid = false;
+
+            snapshot.forEach(child => {
+                const req = child.val();
+
+                const isParticipant = (req.requestedBy === myUID && req.recipientUID === otherUID) ||
+                                      (req.requestedBy === otherUID && req.recipientUID === myUID);
+
+                if (isParticipant) {
+                    const acceptedAt = req.acceptedAt;
+                    const duration = parseInt(req.duration); // in minutes
+                    const expiresAt = acceptedAt + duration * 60 * 1000;
+                    const now = Date.now();
+
+                    if (now <= expiresAt) {
+                        valid = true;
+                        const timeLeft = expiresAt - now;
+                        initMap(myUID, otherUID, timeLeft);
+                    }
+                }
+            });
+
+            if (!valid) {
+                alert("Location sharing session has expired.");
+                window.location.href = "locationShare.html";
+            }
+        });
+}
+
+// Initialize map and location tracking
+function initMap(myUID, otherUID, timeLeft) {
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer();
+
     map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 15,
         center: { lat: 0, lng: 0 },
+        zoom: 15
     });
 
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({ map });
+    directionsRenderer.setMap(map);
 
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            myUID = user.uid;
-            const urlParams = new URLSearchParams(window.location.search);
-            otherUID = urlParams.get("uid");
+    let myLocation = null;
+    let otherLocation = null;
 
-            if (!otherUID) {
-                alert("Invalid link. No UID found.");
-                window.location.href = "locationShare.html";
-                return;
-            }
+    // Watch user's location
+    locationWatcher = navigator.geolocation.watchPosition(position => {
+        const { latitude, longitude } = position.coords;
+        myLocation = { lat: latitude, lng: longitude };
 
-            startSharing();
-            trackOtherUser();
+        db.ref("locations/" + myUID).set({
+            lat: latitude,
+            lng: longitude,
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            sharingWith: otherUID
+        });
+
+        if (!myMarker) {
+            myMarker = new google.maps.Marker({
+                position: myLocation,
+                map,
+                title: "You",
+                icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            });
         } else {
-            window.location.href = "index.html";
+            myMarker.setPosition(myLocation);
+        }
+
+        if (myLocation && otherLocation) {
+            showDirections(myLocation, otherLocation);
         }
     });
 
-    // Auto stop after 30 minutes
-    setTimeout(() => {
-        alert("Location sharing session expired.");
-        db.ref("sharedLocations/" + myUID).remove();
-        window.location.href = "locationShare.html";
-    }, 30 * 60 * 1000);
-}
-
-function startSharing() {
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((position) => {
-            myLocation = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-            };
-
-            if (!myMarker) {
-                myMarker = new google.maps.Marker({
-                    position: myLocation,
-                    map,
-                    label: "You",
-                });
-            } else {
-                myMarker.setPosition(myLocation);
-            }
-
-            db.ref("sharedLocations/" + myUID).set(myLocation);
-
-            if (otherLocation) {
-                map.setCenter(myLocation);
-                showDirections(myLocation, otherLocation);
-            }
-
-        }, (error) => {
-            console.error("Error getting location:", error);
-        });
-    } else {
-        alert("Geolocation not supported.");
-    }
-}
-
-function trackOtherUser() {
-    db.ref("sharedLocations/" + otherUID).on("value", (snapshot) => {
+    // Listen to other user's location
+    db.ref("locations/" + otherUID).on("value", snapshot => {
         const data = snapshot.val();
-        if (data) {
-            otherLocation = data;
+        if (data && data.lat && data.lng) {
+            otherLocation = {
+                lat: data.lat,
+                lng: data.lng
+            };
 
             if (!otherMarker) {
                 otherMarker = new google.maps.Marker({
                     position: otherLocation,
                     map,
-                    label: "Friend",
-                    icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                    title: "Friend",
+                    icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
                 });
             } else {
                 otherMarker.setPosition(otherLocation);
             }
 
-            if (myLocation) {
+            if (myLocation && otherLocation) {
                 showDirections(myLocation, otherLocation);
             }
         }
     });
+
+    // Auto-stop after duration
+    setTimeout(() => {
+        db.ref("locations/" + myUID).remove();
+        navigator.geolocation.clearWatch(locationWatcher);
+        alert("Location sharing time has ended.");
+        window.location.href = "locationShare.html";
+    }, timeLeft);
 }
 
 function showDirections(start, end) {
     directionsService.route({
         origin: start,
         destination: end,
-        travelMode: google.maps.TravelMode.TWO_WHEELER || google.maps.TravelMode.DRIVING
+        travelMode: google.maps.TravelMode.DRIVING
     }, (response, status) => {
         if (status === google.maps.DirectionsStatus.OK) {
             directionsRenderer.setDirections(response);
-
-            const leg = response.routes[0].legs[0];
-            document.getElementById("info").innerHTML = `
-                <strong>ETA:</strong> ${leg.duration.text} <br>
-                <strong>Distance:</strong> ${leg.distance.text}
-            `;
         } else {
-            console.error("Directions request failed:", status);
+            console.error("Directions request failed due to " + status);
         }
     });
 }
-
-window.initMap = initMap;
-
-window.startNavigation = () => {
-    if (myLocation && otherLocation) {
-        window.open(`https://www.google.com/maps/dir/?api=1&origin=${myLocation.lat},${myLocation.lng}&destination=${otherLocation.lat},${otherLocation.lng}&travelmode=driving`);
-    }
-};
-
-window.recenterMap = () => {
-    if (myLocation) {
-        map.setCenter(myLocation);
-    }
-};
