@@ -120,4 +120,3 @@ function acceptRequest(requestKey, requesterUID) {
         alert("Failed to accept the request. Please try again.");
     });
 }
-
