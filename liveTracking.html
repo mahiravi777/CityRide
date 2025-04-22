@@ -1,72 +1,118 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Live Location Tracking</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>City Ride - Live Tracking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #f0f0f0;
+    }
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    header {
+      background-color: #000;
+      color: white;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
 
-    <!-- Google Maps -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAlJw5hueg9BJ3xCgvjbPuP46figp6EUhg&callback=initMap" async defer></script>
+    header .back {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      cursor: pointer;
+    }
 
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
+    #map {
+      height: calc(100vh - 200px);
+      width: 100%;
+    }
 
-        #map {
-            height: 100%;
-            width: 100%;
-        }
+    .bottom-card {
+      background: white;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      position: relative;
+      top: -10px;
+    }
 
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            z-index: 10;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        }
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
 
-        #buttons {
-            position: absolute;
-            bottom: 20px;
-            left: 10px;
-            z-index: 10;
-        }
+    .profile img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
 
-        button {
-            padding: 10px 20px;
-            margin-right: 10px;
-            font-size: 16px;
-        }
-    </style>
+    .profile .info {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .end-btn {
+      background-color: red;
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
 
-    <!-- Map Container -->
-    <div id="map"></div>
+  <header>
+    <span class="back" onclick="window.history.back()">←</span>
+    City Ride
+  </header>
 
-    <!-- Info Display -->
-    <div id="info"></div>
+  <div id="map"></div>
 
-    <!-- Navigation Buttons -->
-    <div id="buttons">
-        <button onclick="startNavigation()">Start</button>
-        <button onclick="recenterMap()">Recenter</button>
+  <div class="bottom-card">
+    <div class="profile">
+      <img src="https://via.placeholder.com/50" alt="User" />
+      <div class="info">
+        <div>John Doe</div>
+        <div style="font-size: 14px; color: gray;">Sharing live location</div>
+      </div>
     </div>
+    <button class="end-btn" onclick="endRide()">End Ride</button>
+  </div>
 
-    <!-- Your Firebase Config -->
-    <script src="firebase-config.js"></script>
+  <script>
+    function initMap() {
+      const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 14,
+        center: { lat: 28.6139, lng: 77.2090 }, // Default to Delhi
+      });
+    }
 
-    <!-- Your Live Tracking Logic -->
-    <script type="module" src="liveTracking.js"></script>
+    function endRide() {
+      alert("Ride ended.");
+      window.location.href = "locationShare.html"; // or any route you use
+    }
+  </script>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap">
+  </script>
 </body>
 </html>
